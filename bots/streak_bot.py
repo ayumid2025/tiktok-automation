@@ -1,23 +1,60 @@
+#!/usr/bin/env python3
 import os
 import sys
 import json
+import time
+import random
 import psycopg2
+from datetime import datetime
 from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 
-DB_HOST = os.getenv('DB_HOST')
-DB_USER = os.getenv('DB_USER')
-DB_PASSWORD = os.getenv('DB_PASSWORD')
-DB_NAME = os.getenv('DB_NAME')
+DB_HOST = os.getenv('DB_HOST', 'localhost')
+DB_USER = os.getenv('DB_USER', 'tiktok')
+DB_PASSWORD = os.getenv('DB_PASSWORD', 'securepassword')
+DB_NAME = os.getenv('DB_NAME', 'tiktok_automation')
+
+def get_db_conn():
+    return psycopg2.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, dbname=DB_NAME)
 
 def log_streak(account, target_user):
-    conn = psycopg2.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, dbname=DB_NAME)
+    conn = get_db_conn()
     cur = conn.cursor()
-    cur.execute("INSERT INTO streak_messages (account, target_user) VALUES (%s, %s)", (account, target_user))
+    cur.execute("INSERT INTO streak_messages (account, target_user, sent_at) VALUES (%s, %s, %s)",
+                (account, target_user, datetime.now()))
     conn.commit()
     cur.close()
     conn.close()
+
+def send_dm(driver, username, message):
+    """Send a DM to a user. Assumes we are already logged in."""
+    driver.get(f"https://www.tiktok.com/@{username}")
+    time.sleep(2)
+
+    # Click message button (if present)
+    try:
+        msg_btn = WebDriverWait(driver, 5).until(
+            EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Message')]"))
+        )
+        msg_btn.click()
+        time.sleep(1)
+
+        # In the chat window, type and send
+        textarea = WebDriverWait(driver, 5).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "[data-e2e='chat-input']"))
+        )
+        textarea.send_keys(message)
+        send_btn = driver.find_element(By.CSS_SELECTOR, "[data-e2e='chat-send']")
+        send_btn.click()
+        time.sleep(random.uniform(1, 3))
+        return True
+    except Exception as e:
+        print(f"Could not send DM to {username}: {e}")
+        return False
 
 def main():
     if len(sys.argv) < 2:
@@ -55,13 +92,15 @@ def main():
                         "httpOnly": parts[4] == "TRUE"
                     })
     driver.refresh()
-    # (Insert actual streak sending logic here)
-    # For each target in config['TARGET_USERS']:
-    #   ... send message ...
+    time.sleep(3)
 
-    # Log each sent DM
-    for user in config.get("TARGET_USERS", []):
-        log_streak(account, user)
+    message = config.get("MESSAGE_TO_SEND", ".")
+    for target in config.get("TARGET_USERS", []):
+        print(f"Sending streak to {target}")
+        success = send_dm(driver, target, message)
+        if success:
+            log_streak(account, target)
+        time.sleep(random.uniform(30, 60))  # be gentle
 
     driver.quit()
 
