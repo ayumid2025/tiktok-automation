@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TikTok Automation Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .card { background: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        canvas { max-width: 100%; height: auto; }
+    </style>
+</head>
+<body>
+    <h1>TikTok Automation Dashboard</h1>
+    <div class="card">
+        <h2>Videos Uploaded (Last 7 Days)</h2>
+        <canvas id="videoChart"></canvas>
+    </div>
+    <div class="card">
+        <h2>New Follows (Last 7 Days)</h2>
+        <canvas id="followChart"></canvas>
+    </div>
+    <div class="card">
+        <h2>Streak DMs Sent (Last 7 Days)</h2>
+        <canvas id="streakChart"></canvas>
+    </div>
+
+    <script>
+        fetch('/api/stats')
+            .then(response => response.json())
+            .then(data => {
+                new Chart(document.getElementById('videoChart'), {
+                    type: 'line',
+                    data: {
+                        labels: data.videos.labels,
+                        datasets: [{ label: 'Videos', data: data.videos.values }]
+                    }
+                });
+                new Chart(document.getElementById('followChart'), {
+                    type: 'line',
+                    data: {
+                        labels: data.follows.labels,
+                        datasets: [{ label: 'Follows', data: data.follows.values }]
+                    }
+                });
+                new Chart(document.getElementById('streakChart'), {
+                    type: 'line',
+                    data: {
+                        labels: data.streaks.labels,
+                        datasets: [{ label: 'Streak DMs', data: data.streaks.values }]
+                    }
+                });
+            });
+    </script>
+</body>
+</html>
