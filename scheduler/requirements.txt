@@ -1,0 +1,6 @@
+apscheduler
+requests
+selenium
+webdriver-manager
+psycopg2-binary
+python-dotenv
